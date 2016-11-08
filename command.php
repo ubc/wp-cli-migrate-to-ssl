@@ -12,4 +12,4 @@ if ( ! class_exists( 'WP_CLI' ) ) {
 $hello_world_command = function() {
 	WP_CLI::success( "Hello world." );
 };
-WP_CLI::add_command( 'hello-world', $hello_world_command );
+WP_CLI::add_command( 'migrate-to-ssl', $hello_world_command );

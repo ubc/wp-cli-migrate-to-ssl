@@ -1,8 +1,8 @@
 {
-    "name": "ubc/migrate-to-ssl",
+    "name": "ubc/wp-cli-migrate-to-ssl",
     "description": "Migrate one or more sites to use SSL",
     "type": "wp-cli-package",
-    "homepage": "https://github.com/ubc/migrate-to-ssl",
+    "homepage": "https://github.com/ubc/wp-cli-migrate-to-ssl",
     "license": "MIT",
     "authors": [],
     "minimum-stability": "dev",
