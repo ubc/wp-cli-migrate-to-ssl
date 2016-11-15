@@ -24,11 +24,11 @@ class UBC_Migrate_To_SSL {
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     wp migrate-to-ssl --sites="123"
-	 *     wp migrate-to-ssl --sites="subdomain.yoursite.com"
-	 *     wp migrate-to-ssl --sites="domainmappedsite.com"
-	 *     wp migrate-to-ssl --sites="123,456,789"
-	 *     wp migrate-to-ssl --sites="123" --dry-run
+	 *     wp migrate-to-ssl migrate --sites="123"
+	 *     wp migrate-to-ssl migrate --sites="subdomain.yoursite.com"
+	 *     wp migrate-to-ssl migrate --sites="domainmappedsite.com"
+	 *     wp migrate-to-ssl migrate --sites="123,456,789"
+	 *     wp migrate-to-ssl migrate --sites="123" --dry-run
 	 *
 	 * @when after_wp_load
 	 */
@@ -37,7 +37,9 @@ class UBC_Migrate_To_SSL {
 
 	function migrate( $args, $assoc_args ) {
 
-		$this->set_verbosity( $assoc_args['verbose'] );
+		$verbose = ( isset( $assoc_args['verbose'] ) ) ? $assoc_args['verbose'] : false;
+
+		$this->set_verbosity( $verbose );
 
 		// We need at least one site ID or domain
 		$sites = (array) $this->parse_sites( $assoc_args['sites'] );
@@ -429,6 +431,248 @@ class UBC_Migrate_To_SSL {
 	function is_verbose() {
 		return ( true === $this->verbose ) ? true : false;
 	}/* is_verbose() */
+
+
+	/**
+	 * Fetch a list of active sites that have at least 1  Password Protected Post
+	 *
+	 * ## OPTIONS
+	 *
+	 *
+	 * [--dry-run]
+	 * : Don't actually make the replacements, but print out what they would be.
+	 *
+	 * [--verbose]
+	 * : I heard you like logs in your logs?
+	 * ---
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp migrate-to-ssl ppplist
+	 *     wp migrate-to-ssl ppplist --dry-run
+	 *     wp migrate-to-ssl ppplist --verbose
+	 *
+	 * @when after_wp_load
+	 */
+	function ppplist( $args, $assoc_args ) {
+
+		$verbose = ( isset( $assoc_args['verbose'] ) ) ? $assoc_args['verbose'] : false;
+
+		$this->set_verbosity( $verbose );
+
+		// Get a list of site IDs. We'll need these to form the table names, i.e. wp_1223_posts
+		$all_site_ids = $this->gather_site_ids();
+
+		// Now gather the tables that exist that match these site IDs
+		$all_table_names = $this->gather_available_tables( $all_site_ids );
+
+		// Now loop over these tables to find the sites with Password Protected Posts
+		$sites_with_ppps = $this->find_sites_with_ppp( $all_table_names );
+
+		// Now get the admin email address from each of these sites
+		$admin_emails_for_sites_with_ppps = $this->get_admin_emails( $sites_with_ppps );
+
+		WP_CLI::success( print_r( $admin_emails_for_sites_with_ppps, true ) );
+
+	}/* ppplist */
+
+	/**
+	 * Get a list of all non-archived sites
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param null
+	 * @return null
+	 */
+
+	function gather_site_ids() {
+
+		if ( $this->is_verbose() ) {
+			WP_CLI::log( 'gather_site_ids()' );
+		}
+
+		global $wpdb;
+
+		$site_ids = $wpdb->get_results( $wpdb->prepare(
+			'SELECT blog_id FROM ' . $wpdb->prefix . "blogs WHERE archived = '%s'",
+			0
+		), ARRAY_N );
+
+		if ( $this->is_verbose() ) {
+			WP_CLI::log( 'gather_site_ids(): $site_ids: ' . $site_ids );
+		}
+
+		return $site_ids;
+
+	}/* gather_site_ids() */
+
+	/**
+	 * Gather a list of _options tables we have in the database for the passed in sites.
+	 * i.e. if a site ID is 123 check if we have wp_123_options table.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param null
+	 * @return null
+	 */
+
+	function gather_available_tables( $all_site_ids ) {
+
+		if ( $this->is_verbose() ) {
+			WP_CLI::log( 'gather_available_tables()' );
+		}
+
+		if ( ! is_array( $all_site_ids ) || empty( $all_site_ids ) ) {
+			WP_CLI::error( 'gather_available_tables() requires a non-empty array of Site IDs', true );
+		}
+
+		global $wpdb;
+
+		// Start our output
+		$available_tables = array();
+
+		// Need this for our progress ticker
+		$total_num_of_sites = count( $all_site_ids );
+
+		// This is going to be a slow process, so let's keep us up-to-date
+		$progress = \WP_CLI\Utils\make_progress_bar( 'Determining Available Tables', $total_num_of_sites );
+
+		// Loop over each site ID and see if the table wp_<site_id>_posts exists
+		foreach ( $all_site_ids as $key => $site_id_array ) {
+
+			$site_id = $site_id_array[0];
+
+			$table_name = $wpdb->prefix . $site_id . '_posts';
+
+			if ( $this->is_verbose() ) {
+				WP_CLI::log( 'Checking if ' . $table_name . ' exists' );
+			}
+
+			$table_exists = $wpdb->get_var( $wpdb->prepare(
+				"SHOW TABLES LIKE %s",
+				$table_name
+			) );
+
+			if ( $this->is_verbose() && $table_exists ) {
+				WP_CLI::log( 'Table ' . $table_name . ' exists' );
+			}
+
+			if ( $table_exists ) {
+				$available_tables[] = array( 'site_id' => $site_id, 'table_name' => $table_name );
+			}
+
+			$progress->tick();
+		}
+
+		// End the ticker
+		$progress->finish();
+
+		// Ship it
+		return $available_tables;
+
+	}/* gather_available_tables() */
+
+	/**
+	 * Look through the passed set of tables and then see if a post with a post_password that isn't empty
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param null
+	 * @return null
+	 */
+
+	function find_sites_with_ppp( $all_table_names ) {
+
+		if ( $this->is_verbose() ) {
+			WP_CLI::log( 'find_sites_with_ppp()' );
+		}
+
+		if ( ! is_array( $all_table_names ) || empty( $all_table_names ) ) {
+			WP_CLI::error( 'find_sites_with_ppp() requires a non-empty array of Table Names', true );
+		}
+
+		global $wpdb;
+
+		$sites_with_ppps = array();
+
+		foreach ( $all_table_names as $key => $table_details ) {
+
+			if ( $this->is_verbose() ) {
+				WP_CLI::log( 'Checking ' . print_r( $table_details['table_name'], true ) . ' for PPPs' );
+			}
+
+			$post_ids = $wpdb->get_results( $wpdb->prepare(
+				'SELECT ID FROM ' . $table_details['table_name'] . " WHERE post_password != %s",
+				''
+			), ARRAY_N );
+
+			// If $post_ids is empty, we have no ppps, so don't add it to the list
+			if ( empty( $post_ids ) ) {
+				continue;
+			}
+
+			if ( $this->is_verbose() ) {
+				WP_CLI::log( $table_details['table_name'] . ' has at least one PPP. Adding to list.' );
+			}
+
+			$sites_with_ppps[] = $table_details['site_id'];
+
+		}
+
+		return $sites_with_ppps;
+
+	}/* find_sites_with_ppp() */
+
+
+	/**
+	 * Get the site_url and admin_email options for the passed site IDs
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param null
+	 * @return null
+	 */
+
+	function get_admin_emails( $sites_with_ppps ) {
+
+		if ( $this->is_verbose() ) {
+			WP_CLI::log( 'get_admin_emails()' );
+		}
+
+		if ( ! is_array( $sites_with_ppps ) || empty( $sites_with_ppps ) ) {
+			WP_CLI::error( 'get_admin_emails() requires a non-empty array of Site IDs', true );
+		}
+
+		global $wpdb;
+
+		$contact_details_for_sites_with_ppps = array();
+
+		foreach ( $sites_with_ppps as $key => $site_id ) {
+
+			$table_name = $wpdb->prefix . $site_id . '_options';
+
+			if ( $this->is_verbose() ) {
+				WP_CLI::log( 'Collecting details for site ID: ' . $site_id . ' and table name ' . $table_name );
+			}
+
+			$url = $wpdb->get_var( $wpdb->prepare(
+				'SELECT option_value FROM ' . $table_name . " WHERE option_name = %s",
+				'siteurl'
+			) );
+
+			$admin_email = $wpdb->get_var( $wpdb->prepare(
+				'SELECT option_value FROM ' . $table_name . " WHERE option_name = %s",
+				'admin_email'
+			) );
+
+			$contact_details_for_sites_with_ppps[] = array( 'url' => $url, 'admin_email' => $admin_email, 'ID' => $site_id );
+
+		}
+
+		return $contact_details_for_sites_with_ppps;
+
+	}/* get_admin_emails() */
+
 
 }/* class UBC_Migrate_To_SSL */
 
