@@ -34,15 +34,20 @@ class UBC_Migrate_To_SSL {
 	 */
 
 	public $verbose = false;
+	public $dry_run = false;
+	public $url = 'ubccms-local.dev';
 
 	function migrate( $args, $assoc_args ) {
 
 		$verbose = ( isset( $assoc_args['verbose'] ) ) ? $assoc_args['verbose'] : false;
 
+		$dry_run = ( isset( $assoc_args['dry-run'] ) ) ? $assoc_args['dry-run'] : false;
+
 		$this->set_verbosity( $verbose );
+		$this->set_dry_run( $dry_run );
 
 		// We need at least one site ID or domain
-		$sites = (array) $this->parse_sites( $assoc_args['sites'] );
+		$sites = $this->parse_sites( $assoc_args['sites'] );
 
 		if ( ! $sites ) {
 			WP_CLI::error( 'migrate-to-ssl requires at least one site ID or domain', true );
@@ -50,6 +55,15 @@ class UBC_Migrate_To_SSL {
 
 		if ( empty( $sites ) ) {
 			WP_CLI::error( 'migrate-to-ssl requires at least one valid site ID or domain. None were found in the site list, or domain mapping tables (if active)', true );
+		}
+
+		// Normalize data
+		if ( 1 === count( $sites ) ) {
+			$sites = array( $sites );
+		}
+
+		if ( $this->is_verbose() ) {
+			WP_CLI::log( 'migrate(): $sites: ' . print_r( $sites, true ) );
 		}
 
 		// Now we have an array of arrays, i.e. array( array( 88 => circle.ubccms-local.dev ) )
@@ -189,8 +203,16 @@ class UBC_Migrate_To_SSL {
 		// Test for a domain/path by looking to see if what's passed is numeric
 		if ( is_numeric( $site_string ) ) {
 
+			if ( $this->is_verbose() ) {
+				WP_CLI::log( 'get_site_from_single_string(): Is numeric: ' . $site_string );
+			}
+
 			// Numeric, therefore we need the domain or path
 			$domain_or_path = $this->get_domain_or_path_from_site_id( $site_string );
+
+			if ( $this->is_verbose() ) {
+				WP_CLI::log( 'get_site_from_single_string(): Not numeric. $domain_or_path: ' . $domain_or_path );
+			}
 
 			// If we got it, ship it. If we don't, panic.
 			if ( $domain_or_path ) {
@@ -369,20 +391,72 @@ class UBC_Migrate_To_SSL {
 
 
 	/**
-	 *
+	 * Run and S&R on the passed sites.
 	 *
 	 * @since 1.0.0
 	 *
-	 * @param null
+	 * @param (array) $sites
 	 * @return null
 	 */
 
-	function run_http_search_and_replace_for_sites() {
+	function run_http_search_and_replace_for_sites( $sites ) {
+
+		if ( $this->is_verbose() ) {
+			WP_CLI::log( 'run_http_search_and_replace_for_sites(): ' . print_r( $sites, true ) );
+		}
+
+		// Use wp-cli internal s&r i.e. : wp search-replace 'foo' 'bar' wp_posts wp_postmeta wp_terms --dry-run
+		// We have an array of arrays. Each key in the internal array is the site ID
+		$number_of_sites_to_run_through = count( $sites );
+
+		if ( $this->is_verbose() ) {
+			WP_CLI::log( 'run_http_search_and_replace_for_sites() Number of sites ' . $number_of_sites_to_run_through );
+		}
+
+		foreach ( $sites as $key => $site_details ) {
+
+			if ( $this->is_verbose() ) {
+				WP_CLI::log( 'run_http_search_and_replace_for_sites() foreach ' . print_r( array( $key, $site_details ), true ) );
+			}
+
+			reset( $site_details );
+			$site_id = key( $site_details );
+			$domain = $site_details[ $site_id ];
+
+			if ( $this->is_verbose() ) {
+				WP_CLI::log( 'run_http_search_and_replace_for_sites() foreach $site_id ' . $site_id );
+			}
+
+			// $this_sites_tables = $this->get_tables_for_site_id( $site_id );
+			//
+			// if ( $this->is_verbose() ) {
+			// 	WP_CLI::log( 'run_http_search_and_replace_for_sites() $this_sites_tables ' . print_r( $this_sites_tables, true ) );
+			// }
+			//
+			// // We now have an array of tables, wp-cli s&r requires space-separated list
+			// $tables_as_space_separated_string = implode( " ", $this_sites_tables );
+
+			$search_for		= 'http://' . $domain;
+			$replace_with	= 'https://' . $domain;
+
+			if ( $this->is_verbose() ) {
+				WP_CLI::log( 'About to S&R for $site_id: ' . $site_id . '. Replacing ' . $search_for . ' with ' . $replace_with );
+			}
+
+			$s_and_r_result = WP_CLI::launch_self( 'search-replace', array( $search_for, $replace_with, "wp_{$site_id}_*" ), array( 'url' => $this->url, 'dry-run' => $this->dry_run ), true, true );
+
+			if ( $this->is_verbose() ) {
+				WP_CLI::log( '$s_and_r_result: ' . $s_and_r_result );
+			}
+		}
 
 	}/* run_http_search_and_replace_for_sites() */
 
+
 	/**
-	 *
+	 * Get the database tables for a specific site ID.
+	 * If site_id is 123 then it runs a query similar to
+	 * SHOW TABLES LIKE 'wp\_123\_%';
 	 *
 	 * @since 1.0.0
 	 *
@@ -390,7 +464,99 @@ class UBC_Migrate_To_SSL {
 	 * @return null
 	 */
 
-	function fix_custom_css_files_for_sites() {
+	function get_tables_for_site_id( $site_id ) {
+
+		if ( $this->is_verbose() ) {
+			WP_CLI::log( 'get_tables_for_site_id() for ' . $site_id );
+		}
+
+		$site_id = absint( $site_id );
+
+		global $wpdb;
+
+		$table_string = $wpdb->prefix . $site_id . '\\_%';
+		$site_tables = $wpdb->get_results( $wpdb->prepare(
+			"SHOW TABLES LIKE %s",
+			$table_string
+		), ARRAY_N );
+
+		// This data is a bit of a mess. An array of arrays with the tables the values of the inner array
+		// Tidy it up
+		$final_site_tables = array();
+
+		foreach ( $site_tables as $key => $table_array ) {
+			$final_site_tables[] = $table_array[0];
+		}
+
+		return $final_site_tables;
+
+	}/* get_tables_for_site_id() */
+
+
+	/**
+	 * Oftentimes, people hardcode URLs in CSS files. This isn't clever. But there you have it.
+	 * We'll look for wp-content/blogs.dir/{$site_id}/file/custom-css/custom-css-*.css and
+	 * run a sed within those files
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param null
+	 * @return null
+	 */
+
+	function fix_custom_css_files_for_sites( $sites ) {
+
+		if ( $this->is_verbose() ) {
+			WP_CLI::log( 'fix_custom_css_files_for_sites()' );
+		}
+
+		$content_dir = constant( 'WP_CONTENT_DIR' );
+
+		foreach ( $sites as $key => $site_details ) {
+
+			if ( $this->is_verbose() ) {
+				WP_CLI::log( 'fix_custom_css_files_for_sites() foreach ' . print_r( array( $key, $site_details ), true ) );
+			}
+
+			reset( $site_details );
+			$site_id = key( $site_details );
+			$domain = $site_details[ $site_id ];
+
+			$custom_css_dir = trailingslashit( $content_dir ) . 'blogs.dir/' . $site_id . '/files/custom-css/';
+
+			// Test if that directory exists
+			if ( ! file_exists( $custom_css_dir ) ) {
+				continue;
+			}
+
+			// Find the custom css files only (just in case there's other random stuff in here)
+			$files = preg_grep( '~^custom-css-.*\.(css)$~', scandir( $custom_css_dir ) );
+
+			if ( ! $files || ! is_array( $files ) || empty( $files ) ) {
+				continue;
+			}
+
+			if ( $this->is_verbose() ) {
+				WP_CLI::log( 'fix_custom_css_files_for_sites() CSS Files ' . print_r( $files, true ) );
+			}
+
+			$search_for		= 'http://' . $domain;
+			$replace_with	= 'https://' . $domain;
+
+			foreach( $files as $key => $file_name ) {
+
+				$file_path = $custom_css_dir . $file_name;
+
+				if ( $this->is_verbose() ) {
+					WP_CLI::log( 'In ' . $file_path . ' we are replacing ' . $search_for . ' with ' . $replace_with );
+				}
+
+				$file_contents = file_get_contents( $file_path );
+				$file_contents = str_replace( $search_for, $replace_with, $file_contents );
+				file_put_contents( $file_path, $file_contents );
+			}
+
+		}
 
 	}/* fix_custom_css_files_for_sites() */
 
@@ -426,6 +592,17 @@ class UBC_Migrate_To_SSL {
 		}
 
 	}/* set_verbosity() */
+
+
+	function set_dry_run( $dry_run ) {
+
+		if ( $dry_run ) {
+			$this->dry_run = true;
+		} else {
+			$this->dry_run = false;
+		}
+
+	}/* set_dry_run() */
 
 
 	function is_verbose() {
