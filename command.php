@@ -43,8 +43,11 @@ class UBC_Migrate_To_SSL {
 
 		$dry_run = ( isset( $assoc_args['dry-run'] ) ) ? $assoc_args['dry-run'] : false;
 
+		$url = ( isset( $assoc_args['url'] ) ) ? $assoc_args['url'] : false;
+
 		$this->set_verbosity( $verbose );
 		$this->set_dry_run( $dry_run );
+		$this->set_url( $url );
 
 		// We need at least one site ID or domain
 		$sites = $this->parse_sites( $assoc_args['sites'] );
@@ -604,6 +607,13 @@ class UBC_Migrate_To_SSL {
 
 	}/* set_dry_run() */
 
+	function set_url( $url ) {
+
+		if ( $url ) {
+			$this->url = $url;
+		}
+
+	}/* set_url() */
 
 	function is_verbose() {
 		return ( true === $this->verbose ) ? true : false;
