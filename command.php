@@ -662,7 +662,10 @@ class UBC_Migrate_To_SSL {
 	function ppplist( $args, $assoc_args ) {
 
 		$verbose = ( isset( $assoc_args['verbose'] ) ) ? $assoc_args['verbose'] : false;
+		$dry_run = ( isset( $assoc_args['dry-run'] ) ) ? $assoc_args['dry-run'] : false;
+		$prefix = ( isset( $assoc_args['prefix'] ) ) ? $assoc_args['prefix'] : false;
 
+		$this->set_dry_run( $dry_run );
 		$this->set_verbosity( $verbose );
 		$this->set_prefix( $prefix );
 
