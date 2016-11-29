@@ -681,7 +681,7 @@ class UBC_Migrate_To_SSL {
 		global $wpdb;
 
 		$site_ids = $wpdb->get_results( $wpdb->prepare(
-			'SELECT blog_id FROM ' . $wpdb->prefix . "blogs WHERE archived = '%s'",
+			'SELECT blog_id FROM ' . $wpdb->blogs . " WHERE archived = '%s'",
 			0
 		), ARRAY_N );
 
