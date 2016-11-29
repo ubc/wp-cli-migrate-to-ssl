@@ -743,7 +743,7 @@ class UBC_Migrate_To_SSL {
 
 			$site_id = $site_id_array[0];
 
-			$table_name = $wpdb->prefix . $site_id . '_posts';
+			$table_name = $this->prefix . $site_id . '_posts';
 
 			if ( $this->is_verbose() ) {
 				WP_CLI::log( 'Checking if ' . $table_name . ' exists' );
@@ -850,7 +850,7 @@ class UBC_Migrate_To_SSL {
 
 		foreach ( $sites_with_ppps as $key => $site_id ) {
 
-			$table_name = $wpdb->prefix . $site_id . '_options';
+			$table_name = $this->prefix . $site_id . '_options';
 
 			if ( $this->is_verbose() ) {
 				WP_CLI::log( 'Collecting details for site ID: ' . $site_id . ' and table name ' . $table_name );
