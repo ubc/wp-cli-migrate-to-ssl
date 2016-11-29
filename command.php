@@ -36,6 +36,7 @@ class UBC_Migrate_To_SSL {
 	public $verbose = false;
 	public $dry_run = false;
 	public $url = 'ubccms-local.dev';
+	public $prefix = false;
 
 	function migrate( $args, $assoc_args ) {
 
@@ -44,10 +45,12 @@ class UBC_Migrate_To_SSL {
 		$dry_run = ( isset( $assoc_args['dry-run'] ) ) ? $assoc_args['dry-run'] : false;
 
 		$url = ( isset( $assoc_args['url'] ) ) ? $assoc_args['url'] : false;
+		$prefix = ( isset( $assoc_args['prefix'] ) ) ? $assoc_args['prefix'] : false;
 
 		$this->set_verbosity( $verbose );
 		$this->set_dry_run( $dry_run );
 		$this->set_url( $url );
+		$this->set_prefix( $prefix );
 
 		// We need at least one site ID or domain
 		$sites = $this->parse_sites( $assoc_args['sites'] );
@@ -615,6 +618,17 @@ class UBC_Migrate_To_SSL {
 
 	}/* set_url() */
 
+	function set_prefix( $prefix ) {
+
+		if ( $prefix ) {
+			$this->prefix = $prefix;
+		} else {
+			global $wpdb;
+			$this->prefix = $wpdb->prefix;
+		}
+
+	}/* set_prefix() */
+
 	function is_verbose() {
 		return ( true === $this->verbose ) ? true : false;
 	}/* is_verbose() */
@@ -859,7 +873,6 @@ class UBC_Migrate_To_SSL {
 		return $contact_details_for_sites_with_ppps;
 
 	}/* get_admin_emails() */
-
 
 }/* class UBC_Migrate_To_SSL */
 
