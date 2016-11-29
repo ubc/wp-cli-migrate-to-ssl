@@ -620,6 +620,10 @@ class UBC_Migrate_To_SSL {
 
 	function set_prefix( $prefix ) {
 
+		if ( $this->is_verbose() ) {
+			WP_CLI::log( 'set_prefix(): ' . print_r( $prefix, true ) );
+		}
+
 		if ( $prefix ) {
 			$this->prefix = $prefix;
 		} else {
@@ -660,6 +664,7 @@ class UBC_Migrate_To_SSL {
 		$verbose = ( isset( $assoc_args['verbose'] ) ) ? $assoc_args['verbose'] : false;
 
 		$this->set_verbosity( $verbose );
+		$this->set_prefix( $prefix );
 
 		// Get a list of site IDs. We'll need these to form the table names, i.e. wp_1223_posts
 		$all_site_ids = $this->gather_site_ids();
