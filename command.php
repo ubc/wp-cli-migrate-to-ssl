@@ -702,7 +702,7 @@ class UBC_Migrate_To_SSL {
 			if ( $this->is_verbose() ) {
 				WP_CLI::log( 'outputting file' );
 			}
-			$this->generate_output_file( $admin_emails_for_sites_with_ppps, '~/', 'domain-mapped-sites-with-ppp.txt' );
+			$this->generate_output_file( $admin_emails_for_sites_with_ppps, '/home/sysadmin/', 'domain-mapped-sites-with-ppp.txt' );
 		}
 
 		WP_CLI::success( print_r( count( $admin_emails_for_sites_with_ppps ), true ) );
