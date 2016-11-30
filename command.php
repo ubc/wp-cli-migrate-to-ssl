@@ -820,8 +820,19 @@ class UBC_Migrate_To_SSL {
 				continue;
 			}
 
+			// We need to know if this site is domain-mapped.
+			$mapped = $wpdb->get_var( $wpdb->prepare(
+				'SELECT blog_id FROM ' . $this->prefix . "domain_mapping WHERE blog_id = '%d'",
+				$table_details['site_id']
+			) );
+
+			// Not mapped, don't add.
+			if ( $mapped !== $table_details['site_id'] ) {
+				continue;
+			}
+
 			if ( $this->is_verbose() ) {
-				WP_CLI::log( $table_details['table_name'] . ' has at least one PPP. Adding to list.' );
+				WP_CLI::log( $table_details['table_name'] . ' has at least one PPP and is domain mapped. Adding to list.' );
 			}
 
 			$sites_with_ppps[] = $table_details['site_id'];
