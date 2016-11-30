@@ -702,7 +702,7 @@ class UBC_Migrate_To_SSL {
 			if ( $this->is_verbose() ) {
 				WP_CLI::log( 'outputting file' );
 			}
-			$this->generate_output_file( $admin_emails_for_sites_with_ppps, '/home/sysadmin/', 'domain-mapped-sites-with-ppp.txt' );
+			$this->generate_output_file( $admin_emails_for_sites_with_ppps, '/home/sysadmin/', 'domain-mapped-sites-with-ppp.json' );
 		}
 
 		WP_CLI::success( print_r( count( $admin_emails_for_sites_with_ppps ), true ) );
@@ -926,7 +926,15 @@ class UBC_Migrate_To_SSL {
 
 		$full_file_path = $path . $file_name;
 
-		file_put_contents( $full_file_path, print_r( serialize( $output ), true ) );
+		if ( is_array( $output ) ) {
+
+			foreach ( $output as $id => $data ) {
+				file_put_contents( $full_file_path, json_encode( $data, JSON_PRETTY_PRINT ), FILE_APPEND );
+			}
+		} else {
+			file_put_contents( $full_file_path, print_r( $output, true ) );
+		}
+
 
 	}/* generate_output_file() */
 
