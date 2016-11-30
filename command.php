@@ -699,10 +699,13 @@ class UBC_Migrate_To_SSL {
 		$admin_emails_for_sites_with_ppps = $this->get_admin_emails( $sites_with_ppps );
 
 		if ( 'file' === $this->output ) {
+			if ( $this->is_verbose() ) {
+				WP_CLI::log( 'outputting file' );
+			}
 			$this->generate_output_file( $admin_emails_for_sites_with_ppps, '~/', 'domain-mapped-sites-with-ppp.txt' );
 		}
 
-		WP_CLI::success( print_r( $admin_emails_for_sites_with_ppps, true ) );
+		WP_CLI::success( print_r( count( $admin_emails_for_sites_with_ppps ), true ) );
 
 	}/* ppplist */
 
