@@ -926,7 +926,7 @@ class UBC_Migrate_To_SSL {
 
 		$full_file_path = $path . $file_name;
 
-		file_put_contents( $full_file_path, $output );
+		file_put_contents( $full_file_path, print_r( $output, true ) );
 
 	}/* generate_output_file() */
 
