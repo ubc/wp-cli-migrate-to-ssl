@@ -37,6 +37,7 @@ class UBC_Migrate_To_SSL {
 	public $dry_run = false;
 	public $url = 'ubccms-local.dev';
 	public $prefix = false;
+	public $output_file = false;
 
 	function migrate( $args, $assoc_args ) {
 
@@ -46,11 +47,13 @@ class UBC_Migrate_To_SSL {
 
 		$url = ( isset( $assoc_args['url'] ) ) ? $assoc_args['url'] : false;
 		$prefix = ( isset( $assoc_args['prefix'] ) ) ? $assoc_args['prefix'] : false;
+		$output = ( isset( $assoc_args['output'] ) ) ? $assoc_args['output'] : false;
 
 		$this->set_verbosity( $verbose );
 		$this->set_dry_run( $dry_run );
 		$this->set_url( $url );
 		$this->set_prefix( $prefix );
+		$this->set_output( $output );
 
 		// We need at least one site ID or domain
 		$sites = $this->parse_sites( $assoc_args['sites'] );
@@ -633,6 +636,18 @@ class UBC_Migrate_To_SSL {
 
 	}/* set_prefix() */
 
+	function set_output( $output ) {
+
+		if ( $this->is_verbose() ) {
+			WP_CLI::log( 'set_output(): ' . print_r( $output, true ) );
+		}
+
+		if ( $output ) {
+			$this->output = $output;
+		}
+
+	}/* set_output() */
+
 	function is_verbose() {
 		return ( true === $this->verbose ) ? true : false;
 	}/* is_verbose() */
@@ -664,10 +679,12 @@ class UBC_Migrate_To_SSL {
 		$verbose = ( isset( $assoc_args['verbose'] ) ) ? $assoc_args['verbose'] : false;
 		$dry_run = ( isset( $assoc_args['dry-run'] ) ) ? $assoc_args['dry-run'] : false;
 		$prefix = ( isset( $assoc_args['prefix'] ) ) ? $assoc_args['prefix'] : false;
+		$output = ( isset( $assoc_args['output'] ) ) ? $assoc_args['output'] : false;
 
 		$this->set_dry_run( $dry_run );
 		$this->set_verbosity( $verbose );
 		$this->set_prefix( $prefix );
+		$this->set_output( $output );
 
 		// Get a list of site IDs. We'll need these to form the table names, i.e. wp_1223_posts
 		$all_site_ids = $this->gather_site_ids();
@@ -680,6 +697,10 @@ class UBC_Migrate_To_SSL {
 
 		// Now get the admin email address from each of these sites
 		$admin_emails_for_sites_with_ppps = $this->get_admin_emails( $sites_with_ppps );
+
+		if ( 'file' === $this->output ) {
+			$this->generate_output_file( $admin_emails_for_sites_with_ppps, '~/', 'domain-mapped-sites-with-ppp.txt' );
+		}
 
 		WP_CLI::success( print_r( $admin_emails_for_sites_with_ppps, true ) );
 
@@ -892,6 +913,19 @@ class UBC_Migrate_To_SSL {
 		return $contact_details_for_sites_with_ppps;
 
 	}/* get_admin_emails() */
+
+
+	function generate_output_file( $output, $path, $file_name ) {
+
+		if ( $this->is_verbose() ) {
+			WP_CLI::log( 'generate_output_file(): ' . $path . $file_name );
+		}
+
+		$full_file_path = $path . $file_name;
+
+		file_put_contents( $full_file_path, $output );
+
+	}/* generate_output_file() */
 
 }/* class UBC_Migrate_To_SSL */
 
