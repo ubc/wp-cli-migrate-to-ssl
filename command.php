@@ -913,7 +913,12 @@ class UBC_Migrate_To_SSL {
 				'admin_email'
 			) );
 
-			$contact_details_for_sites_with_ppps[] = array( 'url' => $url, 'admin_email' => $admin_email, 'ID' => $site_id );
+			$mapped_domain = $wpdb->get_var( $wpdb->prepare(
+				'SELECT domain FROM ' . $this->prefix . "domain_mapping WHERE blog_id = %d",
+				$site_id
+			) );
+
+			$contact_details_for_sites_with_ppps[] = array( 'url' => $url, 'mapped_domain' => $mapped_domain, 'admin_email' => $admin_email, 'ID' => $site_id );
 
 		}
 
