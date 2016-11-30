@@ -686,22 +686,26 @@ class UBC_Migrate_To_SSL {
 		$this->set_prefix( $prefix );
 		$this->set_output( $output );
 
-		// Get a list of site IDs. We'll need these to form the table names, i.e. wp_1223_posts
-		$all_site_ids = $this->gather_site_ids();
+		// See if we have this stored as a transient
+		if ( false === ( $admin_emails_for_sites_with_ppps = get_transient( 'ubc_ppp_sites' ) ) ) {
 
-		// Now gather the tables that exist that match these site IDs
-		$all_table_names = $this->gather_available_tables( $all_site_ids );
+			// Get a list of site IDs. We'll need these to form the table names, i.e. wp_1223_posts
+			$all_site_ids = $this->gather_site_ids();
 
-		// Now loop over these tables to find the sites with Password Protected Posts
-		$sites_with_ppps = $this->find_sites_with_ppp( $all_table_names );
+			// Now gather the tables that exist that match these site IDs
+			$all_table_names = $this->gather_available_tables( $all_site_ids );
 
-		// Now get the admin email address from each of these sites
-		$admin_emails_for_sites_with_ppps = $this->get_admin_emails( $sites_with_ppps );
+			// Now loop over these tables to find the sites with Password Protected Posts
+			$sites_with_ppps = $this->find_sites_with_ppp( $all_table_names );
+
+			// Now get the admin email address from each of these sites
+			$admin_emails_for_sites_with_ppps = $this->get_admin_emails( $sites_with_ppps );
+
+			set_transient( 'ubc_ppp_sites', $admin_emails_for_sites_with_ppps, 12 * HOUR_IN_SECONDS );
+
+		}
 
 		if ( 'file' === $this->output ) {
-			if ( $this->is_verbose() ) {
-				WP_CLI::log( 'outputting file' );
-			}
 			$this->generate_output_file( $admin_emails_for_sites_with_ppps, '/home/sysadmin/', 'domain-mapped-sites-with-ppp.json' );
 		}
 
