@@ -340,8 +340,10 @@ class UBC_Migrate_To_SSL {
 
 		$what_to_select = $this->get_ms_install_type();
 
+		$table_name = $this->prefix . 'blogs';
+
 		$return = $wpdb->get_var( $wpdb->prepare(
-			'SELECT ' . $what_to_select . ' FROM ' . $wpdb->prefix . "blogs WHERE blog_id = '%s'",
+			'SELECT ' . $what_to_select . ' FROM ' . $table_name . "blogs WHERE blog_id = '%s'",
 			$site_id
 		) );
 
@@ -385,8 +387,10 @@ class UBC_Migrate_To_SSL {
 
 		global $wpdb;
 
+		$table_name = $this->prefix . 'domain_mapping';
+
 		$blog_id = $wpdb->get_var( $wpdb->prepare(
-			'SELECT blog_id FROM ' . $wpdb->prefix . "domain_mapping WHERE domain = '%s'",
+			'SELECT blog_id FROM ' . $table_name . " WHERE domain = '%s'",
 			$domain
 		) );
 
