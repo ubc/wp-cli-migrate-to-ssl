@@ -461,9 +461,69 @@ class UBC_Migrate_To_SSL {
 			if ( $this->is_verbose() ) {
 				WP_CLI::log( '$s_and_r_result: ' . $s_and_r_result );
 			}
+
+			// Now check if this is a domain-mapped site and do the S&R for the mapped domain if it is
+			$mapped = $this->is_domain_mapped( $site_id, 'domain' );
+			if ( ! $mapped ) {
+				continue;
+			}
+
+			if ( $this->is_verbose() ) {
+				WP_CLI::log( 'Domain mapped site. Now running S&R for mapped domain: ' . $mapped );
+			}
+
+			$search_for		= 'http://' . $mapped;
+			$replace_with	= 'https://' . $mapped;
+
+			$s_and_r_result = WP_CLI::launch_self( 'search-replace', array( $search_for, $replace_with, "wp_{$site_id}_*" ), array( 'url' => $this->url, 'dry-run' => $this->dry_run ), true, true );
+
 		}
 
 	}/* run_http_search_and_replace_for_sites() */
+
+	/**
+	 * Work out if a site ID is domain mapped and if so, return the domain
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param null
+	 * @return null
+	 */
+
+	function is_domain_mapped( $site_id, $what_to_return = 'id' ) {
+
+		$mapped = $wpdb->get_results( $wpdb->prepare(
+			'SELECT * FROM ' . $this->prefix . "domain_mapping WHERE blog_id = '%d'",
+			$site_id
+		) );
+
+		if ( $this->is_verbose() ) {
+			WP_CLI::log( 'is_domain_mapped(): ' . print_r( $mapped, true ) );
+		}
+
+		// Explicitly return false if this is not a mapped domain
+		if ( $mapped->blog_id !== $site_id ) {
+			return false;
+		}
+
+		// It *is* a mapped domain, so now we return what was requested; id, domain or boolean
+		switch ( $what_to_return ) {
+
+			case 'domain':
+				return $mapped->domain;
+				break;
+
+			case 'bool':
+				return true;
+				break;
+
+			case 'id':
+			default:
+				$mapped->blog_id;
+				break;
+		}
+
+	}/* is_domain_mapped() */
 
 
 	/**
