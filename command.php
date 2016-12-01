@@ -644,6 +644,8 @@ class UBC_Migrate_To_SSL {
 
 	function add_new_ssl_certs_for_sites( $sites ) {
 
+		WP_CLI::confirm( 'Would you like to issue new certificates for all of the requested sites?' );
+
 		foreach ( $sites as $key => $site_details ) {
 
 			if ( $this->is_verbose() ) {
@@ -654,7 +656,6 @@ class UBC_Migrate_To_SSL {
 			$site_id = key( $site_details );
 			$domain = $site_details[ $site_id ];
 
-			WP_CLI::confirm( 'Would you like to fetch a new SSL Certificate for ' . $domain . ' ?' );
 		}
 
 	}/* add_new_ssl_certs_for_sites() */
