@@ -578,7 +578,20 @@ class UBC_Migrate_To_SSL {
 	 * @return null
 	 */
 
-	function add_new_ssl_certs_for_sites() {
+	function add_new_ssl_certs_for_sites( $sites ) {
+
+		foreach ( $sites as $key => $site_details ) {
+
+			if ( $this->is_verbose() ) {
+				WP_CLI::log( 'add_new_ssl_certs_for_sites() foreach ' . print_r( array( $key, $site_details ), true ) );
+			}
+
+			reset( $site_details );
+			$site_id = key( $site_details );
+			$domain = $site_details[ $site_id ];
+
+			WP_CLI::confirm( 'Would you like to fetch a new SSL Certificate for ' . $domain . ' ?' );
+		}
 
 	}/* add_new_ssl_certs_for_sites() */
 
