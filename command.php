@@ -343,7 +343,7 @@ class UBC_Migrate_To_SSL {
 		$table_name = $this->prefix . 'blogs';
 
 		$return = $wpdb->get_var( $wpdb->prepare(
-			'SELECT ' . $what_to_select . ' FROM ' . $table_name . "blogs WHERE blog_id = '%s'",
+			'SELECT ' . $what_to_select . ' FROM ' . $table_name . " WHERE blog_id = '%s'",
 			$site_id
 		) );
 
