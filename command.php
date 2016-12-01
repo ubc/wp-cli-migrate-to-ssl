@@ -492,6 +492,8 @@ class UBC_Migrate_To_SSL {
 
 	function is_domain_mapped( $site_id, $what_to_return = 'id' ) {
 
+		global $wpdb;
+
 		$mapped = $wpdb->get_results( $wpdb->prepare(
 			'SELECT * FROM ' . $this->prefix . "domain_mapping WHERE blog_id = '%d'",
 			$site_id
